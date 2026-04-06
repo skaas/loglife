@@ -1,0 +1,16 @@
+{
+  "update_id": 123456789,
+  "message": {
+    "message_id": 42,
+    "from": {
+      "first_name": "User",
+      "username": "example_user"
+    },
+    "chat": {
+      "id": 987654321,
+      "type": "private"
+    },
+    "date": 1775444100,
+    "text": "오늘 떠오른 아이디어 하나 적어둠"
+  }
+}

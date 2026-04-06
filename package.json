@@ -1,0 +1,17 @@
+{
+  "name": "telegram-obsidian-vault-bot",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "typecheck": "tsc --noEmit",
+    "set:webhook": "node ./scripts/set-webhook.mjs"
+  },
+  "dependencies": {
+    "@vercel/node": "^5.3.24"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "typescript": "^5.9.3"
+  }
+}
