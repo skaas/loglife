@@ -1,14 +1,21 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-import { getConfig, isAllowedChatId, type AppConfig } from "../../lib/config.js";
+import {
+  getConfig,
+  hasGooglePhotosConfig,
+  isAllowedChatId,
+  type AppConfig,
+} from "../../lib/config.js";
 import {
   appendDailyEntry,
   buildNotePaths,
   createRawNote,
   getTimestampParts,
 } from "../../lib/daily-note.js";
+import { uploadTelegramPhotoToGooglePhotos } from "../../lib/google-photos.js";
 import { createTextFileIfMissing, updateTextFile } from "../../lib/github.js";
 import {
+  getLargestPhoto,
   getIncomingMessage,
   getMessageText,
   getSenderLabel,
@@ -37,15 +44,19 @@ function parseUpdate(body: unknown): TelegramUpdate {
 function formatSuccessReply({
   dailyPath,
   dailyResult,
+  contentKind,
 }: {
   dailyPath: string;
   dailyResult: "created" | "updated" | "unchanged";
+  contentKind: "text" | "photo";
 }) {
+  const headline = contentKind === "photo" ? "사진 저장 완료" : "저장 완료";
+
   if (dailyResult === "unchanged") {
     return `이미 저장된 메시지입니다.\n${dailyPath}`;
   }
 
-  return `저장 완료\n${dailyPath}`;
+  return `${headline}\n${dailyPath}`;
 }
 
 function formatErrorReply(error: unknown): string {
@@ -70,6 +81,31 @@ async function replyToTelegramMessage(
   } catch (error) {
     console.error("Failed to send Telegram status reply", error);
   }
+}
+
+function buildPhotoDailyText(caption: string | null, productUrl: string): string {
+  const lines: string[] = [];
+
+  if (caption) {
+    const [firstLine, ...rest] = caption.split("\n");
+    lines.push(`사진: ${firstLine}`);
+    lines.push(...rest);
+  } else {
+    lines.push("사진");
+  }
+
+  lines.push(`[Google Photos에서 보기](${productUrl})`);
+  return lines.join("\n");
+}
+
+function buildPhotoRawText(caption: string | null, productUrl: string): string {
+  const parts = ["Google Photos", productUrl];
+
+  if (caption) {
+    parts.unshift("Caption", caption);
+  }
+
+  return parts.join("\n\n");
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -111,7 +147,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const messageText = getMessageText(message);
-  if (!messageText) {
+  const photo = getLargestPhoto(message);
+
+  if (!messageText && !photo) {
     await replyToTelegramMessage(config, message, "텍스트 메시지만 저장할 수 있습니다.");
     return res.status(200).json({ ok: true, ignored: "non_text_message" });
   }
@@ -128,6 +166,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const senderLabel = getSenderLabel(message);
+    let entryText = messageText || "";
+    let rawText = messageText || "";
+    let contentKind: "text" | "photo" = "text";
+    let rawFrontmatter: Record<string, string | number | boolean | undefined> | undefined;
+
+    if (photo) {
+      if (!hasGooglePhotosConfig(config)) {
+        await replyToTelegramMessage(
+          config,
+          message,
+          "사진 저장이 아직 설정되지 않았습니다. Google Photos 설정이 필요합니다.",
+        );
+        return res.status(200).json({ ok: true, ignored: "photo_storage_not_configured" });
+      }
+
+      const uploadedPhoto = await uploadTelegramPhotoToGooglePhotos({
+        config,
+        photo,
+        unixSeconds: message.date,
+        description: messageText || undefined,
+      });
+
+      contentKind = "photo";
+      entryText = buildPhotoDailyText(messageText, uploadedPhoto.productUrl);
+      rawText = buildPhotoRawText(messageText, uploadedPhoto.productUrl);
+      rawFrontmatter = {
+        google_photos_media_item_id: uploadedPhoto.mediaItemId,
+        google_photos_product_url: uploadedPhoto.productUrl,
+        mime_type: uploadedPhoto.mimeType,
+        telegram_file_id: uploadedPhoto.telegramFileId,
+        telegram_file_unique_id: uploadedPhoto.telegramFileUniqueId,
+        telegram_file_path: uploadedPhoto.filePath,
+      };
+    }
 
     const dailyResult = await updateTextFile(config, {
       path: paths.dailyPath,
@@ -138,7 +210,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           dateKey: timestamp.dateKey,
           timeKey: timestamp.timeKey,
           updateId: update.update_id,
-          messageText,
+          messageText: entryText,
           senderLabel,
         }),
     });
@@ -150,7 +222,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       messageId: message.message_id,
       chatId: String(message.chat.id),
       senderLabel,
-      messageText,
+      messageText: rawText,
+      contentType: contentKind,
+      extraFrontmatter: rawFrontmatter,
     });
 
     const rawResult = await createTextFileIfMissing(config, {
@@ -165,6 +239,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       formatSuccessReply({
         dailyPath: paths.dailyPath,
         dailyResult,
+        contentKind,
       }),
     );
 

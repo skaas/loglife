@@ -129,6 +129,8 @@ export function createRawNote({
   chatId,
   senderLabel,
   messageText,
+  contentType,
+  extraFrontmatter,
 }: {
   updateId: number;
   dateKey: string;
@@ -137,18 +139,30 @@ export function createRawNote({
   chatId: string;
   senderLabel: string;
   messageText: string;
+  contentType?: string;
+  extraFrontmatter?: Record<string, string | number | boolean | undefined>;
 }) {
   const normalized = normalizeMarkdownText(messageText);
+  const extraLines = Object.entries(extraFrontmatter ?? {})
+    .filter(([, value]) => value !== undefined && value !== "")
+    .map(([key, value]) => {
+      if (typeof value === "number" || typeof value === "boolean") {
+        return `${key}: ${String(value)}`;
+      }
+
+      return `${key}: ${JSON.stringify(value)}`;
+    });
 
   return `---
 source: telegram
+content_type: ${JSON.stringify(contentType || "text")}
 date: ${dateKey}
 update_id: ${updateId}
 message_id: ${messageId}
 chat_id: "${chatId}"
 sender: "${senderLabel}"
 received_at: ${receivedAtIso}
----
+${extraLines.join("\n")}${extraLines.length ? "\n" : ""}---
 
 # Telegram Raw ${updateId}
 

@@ -4,6 +4,10 @@ export type AppConfig = {
   githubRepo: string;
   githubToken: string;
   githubVaultRoot: string;
+  googlePhotosAlbumId: string;
+  googlePhotosClientId: string;
+  googlePhotosClientSecret: string;
+  googlePhotosRefreshToken: string;
   notesBaseDir: string;
   rawBaseDir: string;
   telegramBotToken: string;
@@ -50,6 +54,10 @@ export function getConfig(): AppConfig {
     githubRepo: required("GITHUB_REPO"),
     githubToken: required("GITHUB_TOKEN"),
     githubVaultRoot: normalizePathPart(optional("GITHUB_VAULT_ROOT")),
+    googlePhotosAlbumId: optional("GOOGLE_PHOTOS_ALBUM_ID"),
+    googlePhotosClientId: optional("GOOGLE_PHOTOS_CLIENT_ID"),
+    googlePhotosClientSecret: optional("GOOGLE_PHOTOS_CLIENT_SECRET"),
+    googlePhotosRefreshToken: optional("GOOGLE_PHOTOS_REFRESH_TOKEN"),
     notesBaseDir: normalizePathPart(optional("NOTES_BASE_DIR", "Daily")),
     rawBaseDir: normalizePathPart(optional("RAW_BASE_DIR", "Inbox/Telegram")),
     telegramBotToken: required("TELEGRAM_BOT_TOKEN"),
@@ -65,4 +73,12 @@ export function isAllowedChatId(config: AppConfig, chatId: number | string): boo
   }
 
   return config.allowedChatIds.has(String(chatId));
+}
+
+export function hasGooglePhotosConfig(config: AppConfig): boolean {
+  return Boolean(
+    config.googlePhotosClientId &&
+      config.googlePhotosClientSecret &&
+      config.googlePhotosRefreshToken,
+  );
 }
