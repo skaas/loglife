@@ -41,3 +41,37 @@ export function getSenderLabel(message: TelegramMessage): string {
 
   return fullName || "unknown";
 }
+
+export async function sendTelegramMessage({
+  botToken,
+  chatId,
+  text,
+  replyToMessageId,
+}: {
+  botToken: string;
+  chatId: number | string;
+  text: string;
+  replyToMessageId?: number;
+}) {
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: text.slice(0, 4000),
+      reply_to_message_id: replyToMessageId,
+      allow_sending_without_reply: true,
+    }),
+  });
+
+  const payload = (await response.json()) as {
+    ok?: boolean;
+    description?: string;
+  };
+
+  if (!response.ok || !payload.ok) {
+    throw new Error(`Telegram sendMessage failed: ${JSON.stringify(payload)}`);
+  }
+}

@@ -6,6 +6,7 @@ export type AppConfig = {
   githubVaultRoot: string;
   notesBaseDir: string;
   rawBaseDir: string;
+  telegramBotToken: string;
   telegramSecretToken: string;
   timezone: string;
   allowedChatIds: Set<string>;
@@ -51,6 +52,7 @@ export function getConfig(): AppConfig {
     githubVaultRoot: normalizePathPart(optional("GITHUB_VAULT_ROOT")),
     notesBaseDir: normalizePathPart(optional("NOTES_BASE_DIR", "Daily")),
     rawBaseDir: normalizePathPart(optional("RAW_BASE_DIR", "Inbox/Telegram")),
+    telegramBotToken: required("TELEGRAM_BOT_TOKEN"),
     telegramSecretToken: required("TELEGRAM_SECRET_TOKEN"),
     timezone: optional("TIMEZONE", "Asia/Seoul"),
     allowedChatIds: parseAllowedChatIds(optional("ALLOWED_CHAT_IDS")),

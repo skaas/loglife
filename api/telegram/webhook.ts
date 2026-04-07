@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-import { getConfig, isAllowedChatId } from "../../lib/config.js";
+import { getConfig, isAllowedChatId, type AppConfig } from "../../lib/config.js";
 import {
   appendDailyEntry,
   buildNotePaths,
@@ -12,6 +12,8 @@ import {
   getIncomingMessage,
   getMessageText,
   getSenderLabel,
+  sendTelegramMessage,
+  type TelegramMessage,
   type TelegramUpdate,
 } from "../../lib/telegram.js";
 
@@ -30,6 +32,44 @@ function parseUpdate(body: unknown): TelegramUpdate {
   }
 
   return body as TelegramUpdate;
+}
+
+function formatSuccessReply({
+  dailyPath,
+  dailyResult,
+}: {
+  dailyPath: string;
+  dailyResult: "created" | "updated" | "unchanged";
+}) {
+  if (dailyResult === "unchanged") {
+    return `이미 저장된 메시지입니다.\n${dailyPath}`;
+  }
+
+  return `저장 완료\n${dailyPath}`;
+}
+
+function formatErrorReply(error: unknown): string {
+  const detail =
+    error instanceof Error ? error.message.replace(/\s+/g, " ").slice(0, 240) : "Unknown error";
+
+  return `저장 실패\n${detail}`;
+}
+
+async function replyToTelegramMessage(
+  config: AppConfig,
+  message: TelegramMessage,
+  text: string,
+) {
+  try {
+    await sendTelegramMessage({
+      botToken: config.telegramBotToken,
+      chatId: message.chat.id,
+      text,
+      replyToMessageId: message.message_id,
+    });
+  } catch (error) {
+    console.error("Failed to send Telegram status reply", error);
+  }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -72,6 +112,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const messageText = getMessageText(message);
   if (!messageText) {
+    await replyToTelegramMessage(config, message, "텍스트 메시지만 저장할 수 있습니다.");
     return res.status(200).json({ ok: true, ignored: "non_text_message" });
   }
 
@@ -118,6 +159,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       content: rawContent,
     });
 
+    await replyToTelegramMessage(
+      config,
+      message,
+      formatSuccessReply({
+        dailyPath: paths.dailyPath,
+        dailyResult,
+      }),
+    );
+
     return res.status(200).json({
       ok: true,
       dailyPath: paths.dailyPath,
@@ -127,6 +177,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error) {
     console.error(error);
+    await replyToTelegramMessage(config, message, formatErrorReply(error));
     return res.status(500).json({ ok: false, error: "Failed to write to GitHub" });
   }
 }
