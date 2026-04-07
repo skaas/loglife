@@ -1,19 +1,19 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-import { getConfig, isAllowedChatId } from "../../lib/config";
+import { getConfig, isAllowedChatId } from "../../lib/config.js";
 import {
   appendDailyEntry,
   buildNotePaths,
   createRawNote,
   getTimestampParts,
-} from "../../lib/daily-note";
-import { createTextFileIfMissing, updateTextFile } from "../../lib/github";
+} from "../../lib/daily-note.js";
+import { createTextFileIfMissing, updateTextFile } from "../../lib/github.js";
 import {
   getIncomingMessage,
   getMessageText,
   getSenderLabel,
   type TelegramUpdate,
-} from "../../lib/telegram";
+} from "../../lib/telegram.js";
 
 function readSecretHeader(req: VercelRequest): string {
   const value = req.headers["x-telegram-bot-api-secret-token"];

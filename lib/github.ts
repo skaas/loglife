@@ -1,4 +1,4 @@
-import type { AppConfig } from "./config";
+import type { AppConfig } from "./config.js";
 
 type GitHubFile = {
   content: string;
