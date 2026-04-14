@@ -254,6 +254,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error) {
     console.error(error);
     await replyToTelegramMessage(config, message, formatErrorReply(error));
-    return res.status(500).json({ ok: false, error: "Failed to write to GitHub" });
+    // Acknowledge the webhook even on handled failures so Telegram does not keep retrying.
+    return res.status(200).json({ ok: true, handledError: true });
   }
 }
