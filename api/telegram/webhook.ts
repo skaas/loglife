@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 import {
   getConfig,
-  hasGooglePhotosConfig,
+  hasGoogleDriveConfig,
   isAllowedChatId,
   type AppConfig,
 } from "../../lib/config.js";
@@ -12,7 +12,7 @@ import {
   createRawNote,
   getTimestampParts,
 } from "../../lib/daily-note.js";
-import { uploadTelegramPhotoToGooglePhotos } from "../../lib/google-photos.js";
+import { uploadTelegramPhotoToGoogleDrive } from "../../lib/google-drive.js";
 import { createTextFileIfMissing, updateTextFile } from "../../lib/github.js";
 import {
   getLargestPhoto,
@@ -94,12 +94,12 @@ function buildPhotoDailyText(caption: string | null, productUrl: string): string
     lines.push("사진");
   }
 
-  lines.push(`[Google Photos에서 보기](${productUrl})`);
+  lines.push(`[Google Drive에서 보기](${productUrl})`);
   return lines.join("\n");
 }
 
 function buildPhotoRawText(caption: string | null, productUrl: string): string {
-  const parts = ["Google Photos", productUrl];
+  const parts = ["Google Drive", productUrl];
 
   if (caption) {
     parts.unshift("Caption", caption);
@@ -172,28 +172,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let rawFrontmatter: Record<string, string | number | boolean | undefined> | undefined;
 
     if (photo) {
-      if (!hasGooglePhotosConfig(config)) {
+      if (!hasGoogleDriveConfig(config)) {
         await replyToTelegramMessage(
           config,
           message,
-          "사진 저장이 아직 설정되지 않았습니다. Google Photos 설정이 필요합니다.",
+          "사진 저장이 아직 설정되지 않았습니다. Google Drive 설정이 필요합니다.",
         );
         return res.status(200).json({ ok: true, ignored: "photo_storage_not_configured" });
       }
 
-      const uploadedPhoto = await uploadTelegramPhotoToGooglePhotos({
+      const uploadedPhoto = await uploadTelegramPhotoToGoogleDrive({
         config,
         photo,
         unixSeconds: message.date,
-        description: messageText || undefined,
       });
 
       contentKind = "photo";
       entryText = buildPhotoDailyText(messageText, uploadedPhoto.productUrl);
       rawText = buildPhotoRawText(messageText, uploadedPhoto.productUrl);
       rawFrontmatter = {
-        google_photos_media_item_id: uploadedPhoto.mediaItemId,
-        google_photos_product_url: uploadedPhoto.productUrl,
+        google_drive_file_id: uploadedPhoto.fileId,
+        google_drive_web_view_link: uploadedPhoto.webViewLink,
+        google_drive_web_content_link: uploadedPhoto.webContentLink,
+        drive_public_link_enabled: uploadedPhoto.publicLinkEnabled,
         mime_type: uploadedPhoto.mimeType,
         telegram_file_id: uploadedPhoto.telegramFileId,
         telegram_file_unique_id: uploadedPhoto.telegramFileUniqueId,

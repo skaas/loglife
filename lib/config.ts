@@ -4,10 +4,11 @@ export type AppConfig = {
   githubRepo: string;
   githubToken: string;
   githubVaultRoot: string;
-  googlePhotosAlbumId: string;
-  googlePhotosClientId: string;
-  googlePhotosClientSecret: string;
-  googlePhotosRefreshToken: string;
+  googleDriveClientId: string;
+  googleDriveClientSecret: string;
+  googleDriveRefreshToken: string;
+  googleDriveFolderId: string;
+  googleDrivePublicLinks: boolean;
   notesBaseDir: string;
   rawBaseDir: string;
   telegramBotToken: string;
@@ -28,6 +29,16 @@ function required(name: string): string {
 
 function optional(name: string, fallback = ""): string {
   return process.env[name]?.trim() || fallback;
+}
+
+function optionalBoolean(name: string, fallback = false): boolean {
+  const value = process.env[name]?.trim().toLowerCase();
+
+  if (!value) {
+    return fallback;
+  }
+
+  return value === "1" || value === "true" || value === "yes" || value === "on";
 }
 
 function normalizePathPart(value: string): string {
@@ -54,10 +65,11 @@ export function getConfig(): AppConfig {
     githubRepo: required("GITHUB_REPO"),
     githubToken: required("GITHUB_TOKEN"),
     githubVaultRoot: normalizePathPart(optional("GITHUB_VAULT_ROOT")),
-    googlePhotosAlbumId: optional("GOOGLE_PHOTOS_ALBUM_ID"),
-    googlePhotosClientId: optional("GOOGLE_PHOTOS_CLIENT_ID"),
-    googlePhotosClientSecret: optional("GOOGLE_PHOTOS_CLIENT_SECRET"),
-    googlePhotosRefreshToken: optional("GOOGLE_PHOTOS_REFRESH_TOKEN"),
+    googleDriveClientId: optional("GOOGLE_DRIVE_CLIENT_ID"),
+    googleDriveClientSecret: optional("GOOGLE_DRIVE_CLIENT_SECRET"),
+    googleDriveRefreshToken: optional("GOOGLE_DRIVE_REFRESH_TOKEN"),
+    googleDriveFolderId: optional("GOOGLE_DRIVE_FOLDER_ID"),
+    googleDrivePublicLinks: optionalBoolean("GOOGLE_DRIVE_PUBLIC_LINKS"),
     notesBaseDir: normalizePathPart(optional("NOTES_BASE_DIR", "Daily")),
     rawBaseDir: normalizePathPart(optional("RAW_BASE_DIR", "Inbox/Telegram")),
     telegramBotToken: required("TELEGRAM_BOT_TOKEN"),
@@ -75,10 +87,11 @@ export function isAllowedChatId(config: AppConfig, chatId: number | string): boo
   return config.allowedChatIds.has(String(chatId));
 }
 
-export function hasGooglePhotosConfig(config: AppConfig): boolean {
+export function hasGoogleDriveConfig(config: AppConfig): boolean {
   return Boolean(
-    config.googlePhotosClientId &&
-      config.googlePhotosClientSecret &&
-      config.googlePhotosRefreshToken,
+    config.googleDriveClientId &&
+      config.googleDriveClientSecret &&
+      config.googleDriveRefreshToken &&
+      config.googleDriveFolderId,
   );
 }
